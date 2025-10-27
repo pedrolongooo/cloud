@@ -1,0 +1,55 @@
+openapi: 3.0.3
+info: { title: PJBL BFF – Tutores/Pets/Consultas, version: 1.0.0 }
+paths:
+  /dashboard:
+    get: { summary: Agregação, responses: { '200': { description: OK } } }
+  /tutors:
+    get: { summary: Lista tutores, responses: { '200': { description: OK } } }
+    post:
+      summary: Cria tutor
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Tutor' } } } }
+      responses: { '201': { description: Created } }
+  /pets:
+    get: { summary: Lista pets, responses: { '200': { description: OK } } }
+    post:
+      summary: Cria pet
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Pet' } } } }
+      responses: { '201': { description: Created } }
+  /consultas:
+    get: { summary: Lista consultas, responses: { '200': { description: OK } } }
+    post:
+      summary: Cria consulta via evento
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/Consulta' } } } }
+      responses: { '202': { description: Enqueued } }
+
+components:
+  schemas:
+    Tutor:
+      type: object
+      required: [nome, email, senha]
+      properties:
+        id: { type: integer }
+        nome: { type: string }
+        email: { type: string }
+        telefone: { type: string }
+        senha: { type: string }
+    Pet:
+      type: object
+      required: [tutorId, nome, especie]
+      properties:
+        id: { type: integer }
+        tutorId: { type: integer }
+        nome: { type: string }
+        especie: { type: string }
+        raca: { type: string }
+        idade: { type: integer }
+    Consulta:
+      type: object
+      required: [tutorId, petId, dataHora, tipo]
+      properties:
+        id: { type: string }
+        tutorId: { type: integer }
+        petId: { type: integer }
+        dataHora: { type: string, format: date-time }
+        tipo: { type: string }
+        status: { type: string }

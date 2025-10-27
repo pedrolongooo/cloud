@@ -1,71 +1,61 @@
-import express from 'express';
-import morgan from 'morgan';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import axios from 'axios';
-dotenv.config();
+const express = require("express");
+const fetch = (...args) =>
+  import("node-fetch").then(({ default: f }) => f(...args));
 
 const app = express();
-app.use(cors());
 app.use(express.json());
-app.use(morgan('dev'));
 
-const ORDERS_URL = process.env.ORDERS_URL || 'http://localhost:3001';
-const CUSTOMERS_URL = process.env.CUSTOMERS_URL || 'http://localhost:3002';
-const CREATE_EVENT_URL = process.env.CREATE_EVENT_URL || 'http://localhost:7071/api/create-event';
+const TUTORS_URL = process.env.TUTORS_URL;
+const CONSULTAS_URL = process.env.CONSULTAS_URL;
+const CREATE_EVENT_URL = process.env.CREATE_EVENT_URL;
 
-// Aggregation
-app.get('/aggregate', async (req, res) => {
-  try {
-    const [customers, orders] = await Promise.all([
-      axios.get(`${CUSTOMERS_URL}/customers`).then(r=>r.data),
-      axios.get(`${ORDERS_URL}/orders`).then(r=>r.data),
-    ]);
-    res.json({ customers, orders, ts: new Date().toISOString() });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
+function proxy(base) {
+  return async (req, res) => {
+    const url = base + req.originalUrl;
+    const r = await fetch(url, {
+      method: req.method,
+      headers: { "content-type": "application/json" },
+      body: ["POST", "PUT", "PATCH"].includes(req.method)
+        ? JSON.stringify(req.body)
+        : undefined,
+    });
+    const txt = await r.text();
+    res
+      .status(r.status)
+      .type(r.headers.get("content-type") || "application/json")
+      .send(txt);
+  };
+}
 
-// Proxy CRUD - customers
-app.get('/customers', async (req,res)=>{
-  const r = await axios.get(`${CUSTOMERS_URL}/customers`);
-  res.status(r.status).json(r.data);
-});
-app.get('/customers/:id', async (req,res)=>{
-  try{
-    const r = await axios.get(`${CUSTOMERS_URL}/customers/${req.params.id}`);
-    res.status(r.status).json(r.data);
-  }catch(e){ res.status(e.response?.status||500).json(e.response?.data||{error:e.message});}
-});
-app.post('/customers', async (req,res)=>{
-  const r = await axios.post(`${CUSTOMERS_URL}/customers`, req.body);
-  res.status(r.status).json(r.data);
-});
-app.put('/customers/:id', async (req,res)=>{
-  const r = await axios.put(`${CUSTOMERS_URL}/customers/${req.params.id}`, req.body);
-  res.status(r.status).json(r.data);
-});
-app.delete('/customers/:id', async (req,res)=>{
-  const r = await axios.delete(`${CUSTOMERS_URL}/customers/${req.params.id}`);
-  res.sendStatus(r.status);
+// Agregação
+app.get("/dashboard", async (req, res) => {
+  const [tutorsR, petsR, consultasR] = await Promise.all([
+    fetch(`${TUTORS_URL}/tutors`),
+    fetch(`${TUTORS_URL}/pets`),
+    fetch(`${CONSULTAS_URL}/consultas`),
+  ]);
+  const [tutors, pets, consultas] = await Promise.all([
+    tutorsR.json(),
+    petsR.json(),
+    consultasR.json(),
+  ]);
+  res.json({ tutors, pets, consultas, ts: new Date().toISOString() });
 });
 
-// Proxy Orders list
-app.get('/orders', async (req,res)=>{
-  const r = await axios.get(`${ORDERS_URL}/orders`);
-  res.status(r.status).json(r.data);
+// Consultas - cria via evento (Function HTTP)
+app.post("/consultas", async (req, res) => {
+  const r = await fetch(CREATE_EVENT_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(req.body),
+  });
+  const data = await r.json().catch(() => ({}));
+  res.status(r.ok ? 202 : r.status).json({ ok: r.ok, enqueued: data });
 });
 
-// Create Order via event (HTTP trigger)
-app.post('/orders', async (req, res) => {
-  try{
-    const r = await axios.post(CREATE_EVENT_URL, req.body);
-    res.status(r.status || 202).json({ status: 'enqueued' });
-  }catch(e){
-    res.status(500).json({ error: e.message });
-  }
-});
+// Proxy CRUD
+app.use(["/tutors", "/tutors/:id", "/pets", "/pets/:id"], proxy(TUTORS_URL));
+app.use(["/consultas", "/consultas/:id"], proxy(CONSULTAS_URL));
 
 const port = process.env.PORT || 8080;
-app.listen(port, () => console.log(`BFF running on :${port}`));
+app.listen(port, () => console.log(`bff :${port}`));

@@ -1,26 +1,25 @@
 const mongoose = require('mongoose');
 
-const OrderSchema = new mongoose.Schema({
-  customerId: String,
-  total: Number,
-  status: { type: String, default: 'NEW' }
-},{ timestamps:true });
+let cachedConn = null;
+const ConsultaSchema = new mongoose.Schema({
+  tutorId: Number, petId: Number, dataHora: Date, tipo: String,
+  status: { type: String, default: 'ABERTA' }
+}, { timestamps: true });
+
+function getConsultaModel() {
+  return mongoose.models.Consulta || mongoose.model('Consulta', ConsultaSchema);
+}
 
 module.exports = async function (context, message) {
-  const mongoUri = process.env.MONGODB_URI;
-  if (!mongoUri) {
-    context.log.error('MONGODB_URI missing');
-    return;
-  }
-  await mongoose.connect(mongoUri);
-  const Order = mongoose.model('Order', OrderSchema);
   try {
+    const mongoUri = process.env.MONGODB_URI;
+    if (!cachedConn) cachedConn = await mongoose.connect(mongoUri);
+    const Consulta = getConsultaModel();
     const payload = typeof message === 'string' ? JSON.parse(message) : message;
-    await Order.create(payload);
-    context.log('Order persisted from event');
+    await Consulta.create(payload);
+    context.log('Consulta persistida do evento');
   } catch (e) {
-    context.log.error(e);
-  } finally {
-    await mongoose.disconnect();
+    context.log.error('Persist error:', e && e.stack ? e.stack : e);
+    throw e;
   }
 };
