@@ -1,0 +1,89 @@
+name: Build & Push Docker images
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*", "release-*" ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: docker.io
+  # nome das imagens será: <DOCKERHUB_USERNAME>/<service>
+  SERVICES: |
+    bff:./bff
+    svc-orders:./svc-orders
+    svc-customers:./svc-customers
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Prepare matrix from env SERVICES
+        id: prep
+        run: |
+          # converte a lista SERVICES (name:path) em JSON para rodar em loop
+          echo '${{ env.SERVICES }}' | awk -F: 'NF{printf "{\"name\":\"%s\",\"path\":\"%s\"}\n",$1,$2}' \
+            | jq -s '{include: .}' > matrix.json
+          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+
+      - name: Build & Push (matrix)
+        uses: docker/build-push-action@v6
+        with:
+          # usamos run on each matrix item via buildx bake-like loop
+          # truque: a ação aceita listas separadas por nova linha
+          push: true
+          provenance: false
+          sbom: false
+          # construímos para linux/amd64 (padrão), adicione arm64 se quiser multiplatform
+          platforms: linux/amd64
+          # valores dinâmicos
+          context: ${{ fromJSON(steps.prep.outputs.matrix).include[0].path }}
+        if: ${{ false }}
+        # (esse step é um placeholder para manter a ação em cache; o loop real vem abaixo)
+
+      - name: Loop build & push
+        run: |
+          set -e
+          matrix='${{ steps.prep.outputs.matrix }}'
+          username='${{ secrets.DOCKERHUB_USERNAME }}'
+          # tags dinâmicas: latest para push na main; vX tags para releases; sha curto sempre
+          ref="${GITHUB_REF##*/}"
+          short_sha=$(git rev-parse --short HEAD)
+
+          for row in $(echo "$matrix" | jq -c '.include[]'); do
+            name=$(echo "$row" | jq -r '.name')
+            path=$(echo "$row" | jq -r '.path')
+            image="docker.io/${username}/${name}"
+
+            tags="--tag ${image}:${short_sha}"
+            if [ "${GITHUB_REF_TYPE}" = "branch" ] && [ "$ref" = "main" ]; then
+              tags="${tags} --tag ${image}:latest"
+            fi
+            if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+              tags="${tags} --tag ${image}:${ref}"
+            fi
+
+            echo "::group::Building ${image} from ${path}"
+            docker buildx build \
+              --push \
+              --platform linux/amd64 \
+              --cache-from=type=gha \
+              --cache-to=type=gha,mode=max \
+              ${tags} \
+              "${path}"
+            echo "::endgroup::"
+          done
