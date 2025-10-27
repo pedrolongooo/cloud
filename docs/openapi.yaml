@@ -1,0 +1,113 @@
+openapi: 3.0.3
+info:
+  title: PJBL Cloud API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080 # BFF local
+paths:
+  /customers:
+    get:
+      summary: List customers
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerCreate'
+      responses:
+        '201':
+          description: Created
+  /customers/{id}:
+    get:
+      summary: Get customer by id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '404': { description: Not found }
+    put:
+      summary: Update customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerUpdate' }
+      responses:
+        '200': { description: OK }
+    delete:
+      summary: Delete customer
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Deleted }
+
+  /orders:
+    get:
+      summary: List orders
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create order (via event)
+      description: Creates an order by posting to function HTTP trigger which enfileira no Service Bus.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderCreate' }
+      responses:
+        '202': { description: Accepted }
+
+  /aggregate:
+    get:
+      summary: Aggregate customers + orders
+      responses:
+        '200': { description: OK }
+
+components:
+  schemas:
+    Customer:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+    CustomerCreate:
+      type: object
+      required: [name, email]
+      properties:
+        name: { type: string }
+        email: { type: string }
+    CustomerUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        email: { type: string }
+    Order:
+      type: object
+      properties:
+        _id: { type: string }
+        customerId: { type: string }
+        total: { type: number }
+        status: { type: string }
+    OrderCreate:
+      type: object
+      required: [customerId, total]
+      properties:
+        customerId: { type: string }
+        total: { type: number }

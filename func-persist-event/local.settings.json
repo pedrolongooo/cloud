@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "SB_CONNECTION_STRING": "<service-bus-conn-string>",
+    "MONGODB_URI": "mongodb+srv://<user>:<pass>@<cluster>/<db>?retryWrites=true&w=majority"
+  }
+}

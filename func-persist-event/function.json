@@ -1,0 +1,11 @@
+{
+  "bindings": [
+    {
+      "type": "serviceBusTrigger",
+      "direction": "in",
+      "name": "message",
+      "queueName": "orders-created",
+      "connection": "SB_CONNECTION_STRING"
+    }
+  ]
+}
