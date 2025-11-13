@@ -17,10 +17,10 @@ jobs:
         include:
           - name: bff
             path: ./bff
-          - name: svc-orders
-            path: ./svc-orders
-          - name: svc-customers
-            path: ./svc-customers
+          - name: svc-consultas
+            path: ./svc-consultas
+          - name: svc-tutors
+            path: ./svc-tutors
 
     steps:
       - name: Checkout repository

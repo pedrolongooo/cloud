@@ -39,4 +39,8 @@ O repositório contém:
 - **CI/CD:** GitHub Actions (`.github/workflows/docker-publish.yml`)  
   - Build e Push automáticos de `bff`, `svc-tutors` e `svc-consultas`  
   - Publicação em Docker Hub com tags `latest` e commit SHA  
+<<<<<<< HEAD
   - Login automatizado com `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN`  
+=======
+  - Login automatizado com `DOCKERHUB_USERNAME` e `DOCKERHUB_TOKEN`  
+>>>>>>> 0f906f04d7fc7aeb724041b98e82a333d4925f1a
