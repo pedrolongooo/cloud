@@ -1,5 +1,6 @@
 const express = require("express");
 const mongoose = require("mongoose");
+const setupSwagger = require("./swagger");
 
 const app = express();
 app.use(express.json());
@@ -27,6 +28,17 @@ async function connect() {
 }
 
 // rotas
+/**
+ * @swagger
+ * /consultas:
+ *   get:
+ *     summary: Lista todas as consultas
+ *     tags: [Consultas]
+ *     responses:
+ *       200:
+ *         description: Lista de consultas retornada com sucesso
+ */
+
 app.get("/consultas", async (req, res) => {
   await connect();
   const list = await Consulta.find().sort({ createdAt: -1 }).lean();
@@ -37,6 +49,29 @@ app.get("/consultas/:id", async (req, res) => {
   const it = await Consulta.findById(req.params.id).lean();
   it ? res.json(it) : res.sendStatus(404);
 });
+/**
+ * @swagger
+ * /consultas:
+ *   post:
+ *     summary: Cria uma nova consulta diretamente no microserviço
+ *     tags: [Consultas]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               tutorId: { type: integer }
+ *               petId: { type: integer }
+ *               dataHora: { type: string, format: date-time }
+ *               tipo: { type: string }
+ *               status: { type: string }
+ *     responses:
+ *       201:
+ *         description: Consulta criada com sucesso
+ */
+
 app.post("/consultas", async (req, res) => {
   // habilite se quiser criar direto também
   await connect();
@@ -57,4 +92,5 @@ app.delete("/consultas/:id", async (req, res) => {
 });
 
 const port = process.env.PORT || 3001;
+setupSwagger(app);
 app.listen(port, () => console.log(`svc-consultas :${port}`));

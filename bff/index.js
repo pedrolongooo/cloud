@@ -1,4 +1,5 @@
 const express = require("express");
+const setupSwagger = require("./swagger");
 const fetch = (...args) =>
   import("node-fetch").then(({ default: f }) => f(...args));
 
@@ -28,6 +29,17 @@ function proxy(base) {
 }
 
 // Agregação
+/**
+ * @swagger
+ * /dashboard:
+ *   get:
+ *     summary: Retorna dados agregados (tutores, pets e consultas)
+ *     tags: [BFF]
+ *     responses:
+ *       200:
+ *         description: Dados agregados retornados com sucesso
+ */
+
 app.get("/dashboard", async (req, res) => {
   const [tutorsR, petsR, consultasR] = await Promise.all([
     fetch(`${TUTORS_URL}/tutors`),
@@ -43,6 +55,33 @@ app.get("/dashboard", async (req, res) => {
 });
 
 // Consultas - cria via evento (Function HTTP)
+/**
+ * @swagger
+ * /consultas:
+ *   post:
+ *     summary: Cria uma nova consulta via evento (Function + Service Bus)
+ *     tags: [Consultas]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               tutorId:
+ *                 type: integer
+ *               petId:
+ *                 type: integer
+ *               dataHora:
+ *                 type: string
+ *                 format: date-time
+ *               tipo:
+ *                 type: string
+ *     responses:
+ *       202:
+ *         description: Consulta enviada para processamento
+ */
+
 app.post("/consultas", async (req, res) => {
   const r = await fetch(CREATE_EVENT_URL, {
     method: "POST",
@@ -54,8 +93,20 @@ app.post("/consultas", async (req, res) => {
 });
 
 // Proxy CRUD
+/**
+ * @swagger
+ * /tutors:
+ *   get:
+ *     summary: Lista todos os tutores (proxy para svc-tutors)
+ *     tags: [Tutores]
+ *     responses:
+ *       200:
+ *         description: Lista de tutores
+ */
+
 app.use(["/tutors", "/tutors/:id", "/pets", "/pets/:id"], proxy(TUTORS_URL));
 app.use(["/consultas", "/consultas/:id"], proxy(CONSULTAS_URL));
 
 const port = process.env.PORT || 8080;
+setupSwagger(app);
 app.listen(port, () => console.log(`bff :${port}`));

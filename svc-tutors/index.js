@@ -1,5 +1,7 @@
+require("dotenv").config();
 const express = require("express");
 const sql = require("mssql");
+const setupSwagger = require("./swagger");
 
 const app = express();
 app.use(express.json());
@@ -44,6 +46,17 @@ CREATE TABLE Pets (
 ensureSchema().catch(console.error);
 
 // ---------- Tutors ----------
+/**
+ * @swagger
+ * /tutors:
+ *   get:
+ *     summary: Lista todos os tutores
+ *     tags: [Tutores]
+ *     responses:
+ *       200:
+ *         description: Lista de tutores retornada com sucesso
+ */
+
 app.get("/tutors", async (req, res) => {
   const r = await (await getPool()).request().query("SELECT * FROM Tutors");
   res.json(r.recordset);
@@ -55,6 +68,28 @@ app.get("/tutors/:id", async (req, res) => {
     .query("SELECT * FROM Tutors WHERE id=@id");
   r.recordset[0] ? res.json(r.recordset[0]) : res.sendStatus(404);
 });
+/**
+ * @swagger
+ * /tutors:
+ *   post:
+ *     summary: Cadastra um novo tutor
+ *     tags: [Tutores]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nome: { type: string }
+ *               email: { type: string }
+ *               telefone: { type: string }
+ *               senha: { type: string }
+ *     responses:
+ *       201:
+ *         description: Tutor criado com sucesso
+ */
+
 app.post("/tutors", async (req, res) => {
   const { nome, email, telefone, senha } = req.body;
   const r = await (
@@ -95,6 +130,23 @@ app.delete("/tutors/:id", async (req, res) => {
 });
 
 // ---------- Pets ----------
+/**
+ * @swagger
+ * /pets:
+ *   get:
+ *     summary: Lista todos os pets (ou por tutorId)
+ *     tags: [Pets]
+ *     parameters:
+ *       - in: query
+ *         name: tutorId
+ *         schema:
+ *           type: integer
+ *         required: false
+ *         description: Filtra os pets de um tutor específico
+ *     responses:
+ *       200:
+ *         description: Lista de pets retornada
+ */
 app.get("/pets", async (req, res) => {
   const { tutorId } = req.query;
   const p = await getPool();
@@ -155,4 +207,5 @@ app.delete("/pets/:id", async (req, res) => {
 });
 
 const port = process.env.PORT || 3002;
+setupSwagger(app);
 app.listen(port, () => console.log(`svc-tutors :${port}`));
